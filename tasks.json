@@ -1,0 +1,44 @@
+[
+  {
+    "id": 1,
+    "description": "Upload project to GitHub",
+    "status": "pending",
+    "createdAt": "2026-04-16T20:26:37.613Z",
+    "updatedAt": "2026-04-16T20:26:37.615Z"
+  },
+  {
+    "id": 2,
+    "description": "Complete CSE 310 Module 3",
+    "status": "completed",
+    "createdAt": "2026-04-16T20:29:51.503Z",
+    "updatedAt": "2026-04-16T20:40:03.950Z"
+  },
+  {
+    "id": 3,
+    "description": "Record video demonstration",
+    "status": "pending",
+    "createdAt": "2026-04-16T20:29:51.748Z",
+    "updatedAt": "2026-04-16T20:29:51.748Z"
+  },
+  {
+    "id": 4,
+    "description": "Upload project to GitHub",
+    "status": "pending",
+    "createdAt": "2026-04-16T20:29:51.960Z",
+    "updatedAt": "2026-04-16T20:29:51.960Z"
+  },
+  {
+    "id": 5,
+    "description": "Run today",
+    "status": "pending",
+    "createdAt": "2026-04-16T20:35:26.450Z",
+    "updatedAt": "2026-04-16T20:35:26.450Z"
+  },
+  {
+    "id": 6,
+    "description": "Read my books",
+    "status": "pending",
+    "createdAt": "2026-04-16T20:38:35.740Z",
+    "updatedAt": "2026-04-16T20:38:35.740Z"
+  }
+]

@@ -32,7 +32,7 @@ const readline = require('readline');
 const TASKS_FILE = path.join(__dirname, 'tasks.json');
 const VALID_STATUSES = ['pending', 'completed', 'in-progress'];
 
-// Simple colors for console output (no external packages needed)
+// Simple colors for console output
 const COLORS = {
     reset: '\x1b[0m',
     bright: '\x1b[1m',
@@ -49,62 +49,32 @@ const COLORS = {
 // HELPER FUNCTIONS
 // ============================================
 
-/**
- * Display colored text in console
- * @param {string} message - Message to display
- * @param {string} color - Color key from COLORS object
- */
 function colorPrint(message, color = 'reset') {
     console.log(`${COLORS[color]}${message}${COLORS.reset}`);
 }
 
-/**
- * Display error message
- * @param {string} message - Error message
- */
 function showError(message) {
     colorPrint(`❌ Error: ${message}`, 'red');
 }
 
-/**
- * Display success message
- * @param {string} message - Success message
- */
 function showSuccess(message) {
     colorPrint(`✓ ${message}`, 'green');
 }
 
-/**
- * Display warning message
- * @param {string} message - Warning message
- */
 function showWarning(message) {
-    colorPrint(`⚠️  ${message}`, 'yellow');
+    colorPrint(`⚠️ ${message}`, 'yellow');
 }
 
-/**
- * Display info message
- * @param {string} message - Info message
- */
 function showInfo(message) {
-    colorPrint(`ℹ️  ${message}`, 'cyan');
+    colorPrint(`ℹ️ ${message}`, 'cyan');
 }
 
-/**
- * Format date for display
- * @param {string} isoDate - ISO date string
- * @returns {string} Formatted date string
- */
 function formatDate(isoDate) {
     if (!isoDate) return 'N/A';
     const date = new Date(isoDate);
     return date.toLocaleString();
 }
 
-/**
- * Create readline interface for user input
- * @returns {object} Readline interface
- */
 function createReadlineInterface() {
     return readline.createInterface({
         input: process.stdin,
@@ -112,11 +82,6 @@ function createReadlineInterface() {
     });
 }
 
-/**
- * Ask user for confirmation
- * @param {string} question - Question to ask
- * @returns {Promise<boolean>} True if confirmed
- */
 async function askConfirmation(question) {
     const rl = createReadlineInterface();
     return new Promise((resolve) => {
@@ -127,11 +92,6 @@ async function askConfirmation(question) {
     });
 }
 
-/**
- * Validate task ID
- * @param {number} id - Task ID to validate
- * @returns {boolean} True if valid
- */
 function isValidId(id) {
     return !isNaN(id) && id > 0 && Number.isInteger(parseFloat(id));
 }
@@ -140,17 +100,7 @@ function isValidId(id) {
 // TASK CLASS
 // ============================================
 
-/**
- * Task class representing a single task item
- */
 class Task {
-    /**
-     * Create a new Task
-     * @param {number} id - Unique task identifier
-     * @param {string} description - Task description
-     * @param {string} status - Task status (pending, completed, in-progress)
-     * @param {string} createdAt - Creation timestamp
-     */
     constructor(id, description, status = 'pending', createdAt = null) {
         this.id = id;
         this.description = description;
@@ -159,10 +109,6 @@ class Task {
         this.updatedAt = new Date().toISOString();
     }
 
-    /**
-     * Convert task to JSON-friendly object
-     * @returns {object} JSON representation of task
-     */
     toJSON() {
         return {
             id: this.id,
@@ -173,45 +119,26 @@ class Task {
         };
     }
 
-    /**
-     * Create Task from JSON object
-     * @param {object} json - JSON object
-     * @returns {Task} Task instance
-     */
     static fromJSON(json) {
         const task = new Task(json.id, json.description, json.status, json.createdAt);
         task.updatedAt = json.updatedAt;
         return task;
     }
 
-    /**
-     * Mark task as completed
-     */
     complete() {
         this.status = 'completed';
         this.updatedAt = new Date().toISOString();
     }
 
-    /**
-     * Mark task as in-progress
-     */
     startProgress() {
         this.status = 'in-progress';
         this.updatedAt = new Date().toISOString();
     }
 
-    /**
-     * Check if task is completed
-     * @returns {boolean} True if completed
-     */
     isCompleted() {
         return this.status === 'completed';
     }
 
-    /**
-     * Get status emoji for display
-     * @returns {string} Status emoji
-     */
     getStatusEmoji() {
         switch (this.status) {
             case 'completed': return '✅';
@@ -225,45 +152,42 @@ class Task {
 // TASK MANAGER CLASS
 // ============================================
 
-/**
- * TaskManager class handles all task operations
- */
 class TaskManager {
     constructor() {
         this.tasks = [];
         this.nextId = 1;
+        this.initialized = false;
     }
 
-    /**
-     * Load tasks from JSON file
-     * @returns {Promise<boolean>} True if successful
-     */
+    async initialize() {
+        if (!this.initialized) {
+            await this.loadTasks();
+            this.initialized = true;
+        }
+    }
+
     async loadTasks() {
         try {
-            // Check if file exists
             await fs.access(TASKS_FILE);
-            
-            // Read and parse file
             const data = await fs.readFile(TASKS_FILE, 'utf8');
             const tasksData = JSON.parse(data);
             
-            // Convert JSON objects back to Task instances
             this.tasks = tasksData.map(taskData => Task.fromJSON(taskData));
             
-            // Calculate next available ID
             if (this.tasks.length > 0) {
                 this.nextId = Math.max(...this.tasks.map(t => t.id)) + 1;
+            } else {
+                this.nextId = 1;
             }
             
             return true;
         } catch (error) {
             if (error.code === 'ENOENT') {
-                // File doesn't exist, create empty task list
-                showInfo('No existing tasks file found. Starting fresh.');
+                this.tasks = [];
+                this.nextId = 1;
                 await this.saveTasks();
                 return true;
             } else if (error instanceof SyntaxError) {
-                // Invalid JSON
                 showError('Tasks file is corrupted. Starting with empty task list.');
                 this.tasks = [];
                 this.nextId = 1;
@@ -274,10 +198,6 @@ class TaskManager {
         }
     }
 
-    /**
-     * Save tasks to JSON file
-     * @returns {Promise<void>}
-     */
     async saveTasks() {
         try {
             const tasksData = this.tasks.map(task => task.toJSON());
@@ -288,13 +208,7 @@ class TaskManager {
         }
     }
 
-    /**
-     * Add a new task
-     * @param {string} description - Task description
-     * @returns {Promise<Task>} Created task
-     */
     async addTask(description) {
-        // Validate input
         if (!description || description.trim() === '') {
             throw new Error('Task description cannot be empty');
         }
@@ -303,22 +217,15 @@ class TaskManager {
             throw new Error('Task description is too long (max 500 characters)');
         }
         
-        // Create new task
         const task = new Task(this.nextId, description.trim());
         this.tasks.push(task);
         this.nextId++;
         
-        // Save to file
         await this.saveTasks();
         
         return task;
     }
 
-    /**
-     * List all tasks
-     * @param {string} filter - Filter by status (pending, completed, in-progress, or null for all)
-     * @returns {Array<Task>} Filtered tasks
-     */
     listTasks(filter = null) {
         let filteredTasks = this.tasks;
         
@@ -329,10 +236,6 @@ class TaskManager {
         return filteredTasks;
     }
 
-    /**
-     * Display tasks in formatted table
-     * @param {string} filter - Status filter
-     */
     displayTasks(filter = null) {
         const tasks = this.listTasks(filter);
         
@@ -342,68 +245,50 @@ class TaskManager {
             return;
         }
         
-        // Display header
         console.log('\n' + '='.repeat(80));
         const header = filter ? `${filter.toUpperCase()} TASKS` : 'ALL TASKS';
         colorPrint(`📋 ${header} (${tasks.length} total)`, 'bright');
         console.log('='.repeat(80));
         
-        // Display each task
         tasks.forEach(task => {
             const statusColor = task.isCompleted() ? 'green' : (task.status === 'in-progress' ? 'yellow' : 'white');
             const emoji = task.getStatusEmoji();
             
             console.log(`\n${emoji} ${COLORS.bright}[${task.id}]${COLORS.reset} ${task.description}`);
             colorPrint(`   Status: ${task.status}`, statusColor);
-            colorPrint(`   Created: ${formatDate(task.createdAt)}`, 'dim');
-            colorPrint(`   Updated: ${formatDate(task.updatedAt)}`, 'dim');
+            console.log(`   Created: ${formatDate(task.createdAt)}`);
+            console.log(`   Updated: ${formatDate(task.updatedAt)}`);
             console.log('-'.repeat(80));
         });
     }
 
-    /**
-     * Complete a task by ID
-     * @param {number} id - Task ID
-     * @returns {Promise<Task>} Updated task
-     */
     async completeTask(id) {
-        // Validate ID
         if (!isValidId(id)) {
             throw new Error('Invalid task ID. Please provide a positive number.');
         }
         
-        // Find task
         const task = this.tasks.find(t => t.id === id);
         if (!task) {
-            throw new Error(`Task with ID ${id} not found.`);
+            const availableIds = this.tasks.map(t => t.id).join(', ');
+            throw new Error(`Task with ID ${id} not found. Available IDs: ${availableIds || 'none'}`);
         }
         
-        // Check if already completed
         if (task.isCompleted()) {
             showWarning(`Task ${id} is already completed.`);
             return task;
         }
         
-        // Complete the task
         task.complete();
         await this.saveTasks();
         
         return task;
     }
 
-    /**
-     * Delete a task by ID
-     * @param {number} id - Task ID
-     * @param {boolean} skipConfirmation - Skip confirmation prompt
-     * @returns {Promise<boolean>} True if deleted
-     */
     async deleteTask(id, skipConfirmation = false) {
-        // Validate ID
         if (!isValidId(id)) {
             throw new Error('Invalid task ID. Please provide a positive number.');
         }
         
-        // Find task index
         const index = this.tasks.findIndex(t => t.id === id);
         if (index === -1) {
             throw new Error(`Task with ID ${id} not found.`);
@@ -411,7 +296,6 @@ class TaskManager {
         
         const task = this.tasks[index];
         
-        // Ask for confirmation
         if (!skipConfirmation) {
             const confirmed = await askConfirmation(`Are you sure you want to delete task ${id}: "${task.description}"?`);
             if (!confirmed) {
@@ -420,17 +304,12 @@ class TaskManager {
             }
         }
         
-        // Remove task
         this.tasks.splice(index, 1);
         await this.saveTasks();
         
         return true;
     }
 
-    /**
-     * Get task statistics
-     * @returns {object} Statistics object
-     */
     getStats() {
         const total = this.tasks.length;
         const completed = this.tasks.filter(t => t.isCompleted()).length;
@@ -440,9 +319,6 @@ class TaskManager {
         return { total, completed, inProgress, pending };
     }
 
-    /**
-     * Display task statistics
-     */
     displayStats() {
         const stats = this.getStats();
         
@@ -461,9 +337,6 @@ class TaskManager {
 // COMMAND HANDLERS
 // ============================================
 
-/**
- * Display help information
- */
 function showHelp() {
     console.log(`
 ${COLORS.bright}${COLORS.cyan}Task CLI - Task Manager Application${COLORS.reset}
@@ -496,13 +369,10 @@ ${COLORS.bright}NOTES:${COLORS.reset}
 `);
 }
 
-/**
- * Handle add command
- * @param {TaskManager} manager - Task manager instance
- * @param {string} description - Task description
- */
 async function handleAdd(manager, description) {
     try {
+        await manager.initialize();
+        
         if (!description) {
             showError('Please provide a task description.');
             console.log('Usage: node task.js add "Your task description"');
@@ -517,14 +387,9 @@ async function handleAdd(manager, description) {
     }
 }
 
-/**
- * Handle list command
- * @param {TaskManager} manager - Task manager instance
- * @param {string} filter - Status filter
- */
 async function handleList(manager, filter) {
     try {
-        await manager.loadTasks();
+        await manager.initialize();
         
         if (filter && !VALID_STATUSES.includes(filter)) {
             showError(`Invalid status filter. Use: pending, completed, or in-progress`);
@@ -532,22 +397,24 @@ async function handleList(manager, filter) {
         }
         
         manager.displayTasks(filter);
-        console.log(); // Empty line for spacing
+        console.log();
     } catch (error) {
         showError(error.message);
     }
 }
 
-/**
- * Handle complete command
- * @param {TaskManager} manager - Task manager instance
- * @param {string} idStr - Task ID as string
- */
 async function handleComplete(manager, idStr) {
     try {
+        await manager.initialize();
+        
         if (!idStr) {
             showError('Please provide a task ID.');
             console.log('Usage: node task.js complete <id>');
+            return;
+        }
+        
+        if (manager.tasks.length === 0) {
+            showError('No tasks found. Please add a task first using: node task.js add "Your task"');
             return;
         }
         
@@ -560,16 +427,18 @@ async function handleComplete(manager, idStr) {
     }
 }
 
-/**
- * Handle delete command
- * @param {TaskManager} manager - Task manager instance
- * @param {string} idStr - Task ID as string
- */
 async function handleDelete(manager, idStr) {
     try {
+        await manager.initialize();
+        
         if (!idStr) {
             showError('Please provide a task ID.');
             console.log('Usage: node task.js delete <id>');
+            return;
+        }
+        
+        if (manager.tasks.length === 0) {
+            showError('No tasks found. Please add a task first using: node task.js add "Your task"');
             return;
         }
         
@@ -584,13 +453,9 @@ async function handleDelete(manager, idStr) {
     }
 }
 
-/**
- * Handle stats command
- * @param {TaskManager} manager - Task manager instance
- */
 async function handleStats(manager) {
     try {
-        await manager.loadTasks();
+        await manager.initialize();
         manager.displayStats();
     } catch (error) {
         showError(error.message);
@@ -601,19 +466,13 @@ async function handleStats(manager) {
 // MAIN APPLICATION ENTRY POINT
 // ============================================
 
-/**
- * Main function - entry point of the application
- */
 async function main() {
-    // Get command line arguments
     const args = process.argv.slice(2);
     const command = args[0];
     const argument = args[1];
     
-    // Create task manager instance
     const manager = new TaskManager();
     
-    // Handle different commands
     switch (command) {
         case 'add':
             await handleAdd(manager, argument);
@@ -654,14 +513,11 @@ async function main() {
     }
 }
 
-// Run the application
-// Error handling for uncaught exceptions
 process.on('uncaughtException', (error) => {
     console.error('\n❌ Unexpected error:', error.message);
     process.exit(1);
 });
 
-// Run main function
 if (require.main === module) {
     main().catch(error => {
         showError(`Application error: ${error.message}`);
